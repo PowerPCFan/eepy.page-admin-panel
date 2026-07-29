@@ -35,7 +35,10 @@
         value="{{ old('term') }}" />
       <div class="flex flex-wrap items-center justify-between gap-3">
         <x-checkbox name="replace" label="Replace previous results" checked />
-        <x-button variant="accent"><x-materialsymbols icon="search" />Search</x-button>
+        <x-button variant="accent">
+          <x-materialsymbols icon="search" />
+          Search
+        </x-button>
       </div>
     </form>
   </x-panel>
@@ -84,25 +87,36 @@
             <div class="mt-1 break-all font-mono text-xs text-muted">{{ $user['id'] ?? '' }}</div>
             <div class="mt-3 flex flex-wrap gap-2">
               <form id="full-admin-{{ $user['id'] ?? '' }}" method="POST" action="{{ route('admin.action') }}">
-                @csrf<input type="hidden" name="name" value="full-admin"><input type="hidden"
-                  name="user_id" value="{{ $user['id'] ?? '' }}"><x-confirm-modal
+                @csrf
+                <input type="hidden" name="name" value="full-admin">
+                <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                <x-confirm-modal
                   id="full-admin-modal-{{ $user['id'] ?? '' }}"
                   form="full-admin-{{ $user['id'] ?? '' }}"
                   title="Grant full admin access"
                   confirm-label="Grant access"
+                  icon="add-moderator"
                 >
-                  <x-slot:trigger><x-button type="button" variant="danger" size="small"><x-materialsymbols icon="add-moderator" size="16px" />Grant full admin</x-button></x-slot:trigger>
+                  <x-slot:trigger>
+                    <x-button type="button" variant="danger" size="small">
+                      <x-materialsymbols icon="add-moderator" size="16px" />
+                      Grant full admin
+                    </x-button>
+                  </x-slot:trigger>
                   Are you sure you would like to grant unrestricted admin access to this user?
                 </x-confirm-modal>
               </form>
               <form id="manual-login-{{ $user['id'] ?? '' }}" method="POST" action="{{ route('admin.action') }}">
-                @csrf<input type="hidden" name="name" value="manual-login"><input type="hidden"
-                  name="user_id" value="{{ $user['id'] ?? '' }}"><x-confirm-modal
+                @csrf
+                <input type="hidden" name="name" value="manual-login">
+                <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                <x-confirm-modal
                   id="manual-login-modal-{{ $user['id'] ?? '' }}"
                   form="manual-login-{{ $user['id'] ?? '' }}"
                   title="Create manual login"
                   confirm-label="Proceed with session creation"
                   confirm-variant="danger"
+                  icon="login"
                 >
                   <x-slot:trigger>
                     <x-button type="button" variant="ghost" size="small">
@@ -138,8 +152,14 @@
                     title="Force verify account"
                     confirm-label="Verify account"
                     confirm-variant="danger"
+                    icon="person-check"
                   >
-                    <x-slot:trigger><x-button type="button" variant="ghost" size="small"><x-materialsymbols icon="check" size="16px" />Force verify</x-button></x-slot:trigger>
+                    <x-slot:trigger>
+                      <x-button type="button" variant="ghost" size="small">
+                        <x-materialsymbols icon="person-check" size="16px" />
+                        Force verify
+                      </x-button>
+                    </x-slot:trigger>
                     <p class="break-normal!">
                       This option is showing because <strong>this user has not verified their account</strong>.
                       <br><br>
@@ -165,8 +185,14 @@
                 title="Reinstate account"
                 confirm-label="Reinstate account"
                 confirm-variant="accent"
+                icon="history"
               >
-                <x-slot:trigger><x-button type="button" variant="accent">Reinstate account</x-button></x-slot:trigger>
+                <x-slot:trigger>
+                  <x-button type="button" variant="accent">
+                    <x-materialsymbols icon="history" size="20px" disabletranslatealignmentfix="true" />
+                    Reinstate account
+                  </x-button>
+                </x-slot:trigger>
                 Are you sure you would like to reinstate this user's account?
                 <x-checkbox form="reinstate-{{ $user['id'] ?? '' }}" name="send_email" label="Send email" containerClass="mt-3" />
               </x-confirm-modal>
@@ -174,7 +200,7 @@
           @endif
         </div>
         <div class="grid gap-6 p-5 sm:p-6">
-          <dl class="grid gap-3 sm:grid-cols-2">
+          <dl class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <x-stat title="Email">{{ $user['email'] ?? 'Unavailable' }}</x-stat>
             <x-stat title="Created">{{ !empty($user['created']) ? date('M j, Y H:i T', $user['created']) : 'Unknown' }}</x-stat>
             <x-stat title="Last login">{{ !empty($user['last_login']) ? date('M j, Y H:i T', $user['last_login']) : 'Never' }}</x-stat>
@@ -208,7 +234,10 @@
                 @csrf
                 <input type="hidden" name="type" value="ips">
                 <input type="hidden" name="term" value="{{ implode("\n", $user['accessed_from'] ?? []) }}">
-                <x-button variant="ghost" size="small">Find these IPs</x-button>
+                <x-button variant="ghost" size="small">
+                  <x-materialsymbols icon="bigtop-updates" size="16px" />
+                  Find these IPs
+                </x-button>
               </form>
             </div>
           </details>
@@ -223,8 +252,8 @@
             </div>
           </details>
 
-          <section class="flex flex-row gap-3 border-t border-border pt-4 [&_.divider]:mx-1 [&_.divider]:w-[0.5px] [&_.divider]:bg-border">
-            <div class="grid gap-3 border-border h-min w-1/3">
+          <section class="flex flex-col lg:flex-row gap-3 border-t border-border pt-4">
+            <div class="grid gap-3 border-border h-min w-full lg:w-1/3">
               <h3 class="font-mono text-xs tracking-wider text-muted mt-0.5 -mb-0.5">Administrator</h3>
               @php
                 $adminPermissionNames = [
@@ -298,14 +327,21 @@
                     </tbody>
                   </table>
                 </div>
+
                 <x-confirm-modal
                   id="permissions-modal-{{ $user['id'] ?? '' }}"
                   form="permissions-{{ $user['id'] ?? '' }}"
                   title="Update administrator permissions"
                   confirm-label="Apply changes"
                   confirm-variant="accent"
+                  icon="check"
                 >
-                  <x-slot:trigger><x-button type="button" variant="accent" size="small"><x-materialsymbols icon="check" size="16px" />Apply changes</x-button></x-slot:trigger>
+                  <x-slot:trigger>
+                    <x-button type="button" variant="accent" size="small">
+                      <x-materialsymbols icon="check" size="16px" />
+                      Apply changes
+                    </x-button>
+                  </x-slot:trigger>
                   Are you sure you would like to update this user's administrator permissions?
                   <x-checkbox form="permissions-{{ $user['id'] ?? '' }}" name="send_email" label="Send email" containerClass="mt-3" />
                 </x-confirm-modal>
@@ -321,8 +357,8 @@
                   });
               </script>
             </div>
-            <div class="divider"></div>
-            <div class="grid gap-3 border-border h-min w-1/3">
+            <div class="bg-border my-1 h-[0.5px] w-full lg:mx-1 lg:w-[0.5px] lg:h-full"></div>
+            <div class="grid gap-3 border-border h-min w-full lg:w-1/3">
               <h3 class="font-mono text-xs tracking-wider text-muted mt-0.5 -mb-0.5">Account limits</h3>
               @php
                 $readableMap = [
@@ -351,7 +387,8 @@
                     form="permission-{{ $user['id'] ?? '' }}-{{ $limit }}"
                     title="Update account limits"
                     confirm-label="Update"
-                    confirm-variant="ghost"
+                    confirm-variant="danger"
+                    icon="check"
                   >
                     <x-slot:trigger>
                       <x-button type="button" variant="ghost" size="small">
@@ -365,8 +402,8 @@
                 </form>
               @endforeach
             </div>
-            <div class="divider"></div>
-            <div class="grid gap-3 border-border h-min w-1/3">
+            <div class="bg-border my-1 h-[0.5px] w-full lg:mx-1 lg:w-[0.5px] lg:h-full"></div>
+            <div class="grid gap-3 border-border h-min w-full lg:w-1/3">
               <h3 class="font-mono text-xs tracking-wider text-muted mt-0.5 -mb-0.5">TLDs</h3>
               @foreach ($tlds ?? [] as $tld)
                 <form id="tld-{{ $user['id'] ?? '' }}-{{ str_replace('.', '-', $tld) }}"
@@ -388,7 +425,8 @@
                     form="tld-{{ $user['id'] ?? '' }}-{{ str_replace('.', '-', $tld) }}"
                     title="{{ $owned ? 'Remove TLD' : 'Add TLD' }}"
                     confirm-label="{{ $owned ? 'Remove' : 'Add' }}"
-                    confirm-variant="{{ $owned ? 'danger' : 'ghost' }}"
+                    confirm-variant="danger"
+                    icon="{{ $owned ? 'remove' : 'add' }}"
                   >
                     <x-slot:trigger>
                       <x-button
@@ -396,7 +434,6 @@
                         variant="{{ $owned ? 'danger' : 'ghost' }}"
                         size="small"
                       >
-                        {{-- <x-materialsymbols icon="{{ $owned ? 'block' : 'add-circle' }}" size="16px" /> --}}
                         <x-materialsymbols icon="{{ $owned ? 'remove' : 'add' }}" size="16px" />
                         {{ $owned ? 'Remove' : 'Add' }}
                       </x-button>
@@ -455,6 +492,7 @@
                   form="delete-domain-{{ $user['id'] ?? '' }}-{{ md5($domain['name'] ?? '') }}"
                   title="Delete domain"
                   confirm-label="Delete domain"
+                  icon="delete"
                 >
                   <x-slot:trigger>
                     <x-button type="button" variant="danger" size="small">
@@ -478,12 +516,19 @@
                   name="user_id" value="{{ $user['id'] ?? '' }}"><label
                   for="reasons-{{ $user['id'] }}" class="block text-xs text-muted">Reasons, one per
                   line</label>
-                <textarea id="reasons-{{ $user['id'] }}" name="reasons" required placeholder="Reason one&#10;Reason two"
-                  class="min-h-24 w-full resize-y rounded-lg border border-border bg-input px-3 py-2.5 text-foreground outline-none focus:border-primary focus:ring-4 focus:ring-primary/20"></textarea><x-confirm-modal
+                <textarea
+                  id="reasons-{{ $user['id'] }}"
+                  name="reasons"
+                  required
+                  placeholder="Reason one&#10;Reason two"
+                  class="min-h-24 w-full resize-y rounded-lg border border-border bg-input px-3 py-2.5 text-foreground outline-none focus:border-primary focus:ring-4 focus:ring-primary/20"
+                ></textarea>
+                <x-confirm-modal
                   id="delete-account-modal-{{ $user['id'] ?? '' }}"
                   form="delete-account-{{ $user['id'] ?? '' }}"
                   title="Terminate account"
                   confirm-label="Terminate account"
+                  icon="delete-forever"
                 >
                   <x-slot:trigger>
                     <x-button type="button" variant="danger" size="small">

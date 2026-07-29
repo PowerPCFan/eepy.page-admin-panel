@@ -18,7 +18,10 @@
             <div id="turnstile-widget" class="cf-turnstile flex min-h-16 items-center"
                 data-sitekey="{{ $turnstileSiteKey }}" data-callback="turnstileComplete"
                 data-expired-callback="turnstileExpired" data-error-callback="turnstileExpired"></div>
-            <x-button variant="accent" id="login-button" class="w-full" disabled>Sign in</x-button>
+            <x-button variant="accent" id="login-button" class="w-full" style="font-size: var(--text-lg);" disabled>
+              <x-materialsymbols size="20px" icon="login" disabletranslatealignmentfix="true" />
+              Sign in
+            </x-button>
         </form>
     </x-panel>
     <script>

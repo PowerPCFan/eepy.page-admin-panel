@@ -13,7 +13,12 @@
       @php
         $domainId = \App\Helpers\Helpers::slugifyDomainForURL($domain['name']);
       @endphp
-      <x-button type="button" variant="ghost" size="small" onclick="window.location.href = '{{ route('admin.user') }}#{{ $domainId }}'">
+      <x-button
+        type="button"
+        variant="ghost"
+        size="small"
+        onclick="window.location.href = '{{ route('admin.user') }}#{{ $domainId }}'"
+      >
         <x-materialsymbols size="16px" icon="arrow-back" />
         Back
       </x-button>
@@ -78,15 +83,28 @@
       </div>
 
       <div class="flex flex-wrap justify-end gap-3">
-        <a class="rounded-lg border border-border px-4 py-2 text-sm" href="{{ route('admin.user') }}">Cancel</a>
+        <x-button
+          type="button"
+          variant="ghost"
+          onclick="window.location.href = '{{ route('admin.user') }}'"
+        >
+          <x-materialsymbols icon="cancel" size="20px" disabletranslatealignmentfix="true" />
+          Cancel
+        </x-button>
         <x-confirm-modal
           id="edit-domain-modal"
           form="edit-domain"
           title="Apply domain changes"
           confirm-label="Apply changes"
           confirm-variant="accent"
+          icon="check"
         >
-          <x-slot:trigger><x-button type="button" variant="accent">Apply domain changes</x-button></x-slot:trigger>
+          <x-slot:trigger>
+            <x-button type="button" variant="accent">
+              <x-materialsymbols size="20px" icon="check" disabletranslatealignmentfix="true" />
+              Apply domain changes
+            </x-button>
+          </x-slot:trigger>
           Are you sure you would like to apply these changes to this domain?
         </x-confirm-modal>
       </div>

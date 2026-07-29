@@ -3,6 +3,7 @@
     'form' => null,
     'confirmLabel' => 'Confirm',
     'confirmVariant' => 'danger',
+    'icon' => null,
 ])
 
 @php
@@ -14,22 +15,50 @@
     {{ $trigger }}
   </span>
 
-  <dialog id="{{ $modalId }}"
+  <dialog
+    id="{{ $modalId }}"
     class="m-auto w-[min(100%-2rem,32rem)] rounded-2xl border border-border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/60"
-    aria-labelledby="{{ $modalId }}-title">
+    aria-labelledby="{{ $modalId }}-title"
+  >
     <div class="grid gap-5 p-6">
       <div>
         <h2 id="{{ $modalId }}-title" class="text-xl font-semibold">{{ $title }}</h2>
         <div class="mt-2 text-sm text-muted">{{ $slot }}</div>
       </div>
+
       <div class="flex flex-wrap justify-end gap-3">
-        <x-button type="button" variant="ghost" data-confirm-modal-cancel="{{ $modalId }}">Cancel</x-button>
+        <x-button
+          type="button"
+          variant="ghost"
+          data-confirm-modal-cancel="{{ $modalId }}"
+        >
+          <x-materialsymbols icon="cancel" size="20px" disabletranslatealignmentfix="true" />
+          Cancel
+        </x-button>
+
         @if ($form)
-          <x-button type="submit" variant="{{ $confirmVariant }}" form="{{ $form }}"
-            data-confirm-modal-confirm="{{ $modalId }}">{{ $confirmLabel }}</x-button>
+          <x-button
+            type="submit"
+            variant="{{ $confirmVariant }}"
+            form="{{ $form }}"
+            data-confirm-modal-confirm="{{ $modalId }}"
+          >
+            @if ($icon)
+              <x-materialsymbols icon="{{ $icon }}" size="20px" disabletranslatealignmentfix="true" />
+            @endif
+            {{ $confirmLabel }}
+          </x-button>
         @else
-          <x-button type="submit" variant="{{ $confirmVariant }}"
-            data-confirm-modal-confirm="{{ $modalId }}">{{ $confirmLabel }}</x-button>
+          <x-button
+            type="submit"
+            variant="{{ $confirmVariant }}"
+            data-confirm-modal-confirm="{{ $modalId }}"
+          >
+            @if ($icon)
+              <x-materialsymbols icon="{{ $icon }}" size="20px" disabletranslatealignmentfix="true" />
+            @endif
+            {{ $confirmLabel }}
+          </x-button>
         @endif
       </div>
     </div>
