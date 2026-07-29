@@ -1,0 +1,2 @@
+- make Eloquent models for things like $domain and user object
+- improve domain editor (extremely barebones rn)
