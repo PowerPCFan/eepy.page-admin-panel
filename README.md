@@ -72,6 +72,9 @@ mkdir -p /usr/local/bin && sudo mv composer.phar /usr/local/bin/composer
 From the project directory:
 
 ```bash
+mkdir -p storage/framework/views
+mkdir -p storage/framework/sessions
+
 composer install
 npm install
 
@@ -131,9 +134,6 @@ php artisan view:cache
 
 touch database/database.sqlite
 php artisan migrate --force
-
-sudo chown -R www-data:www-data storage bootstrap/cache
-sudo chmod -R ug+rw storage bootstrap/cache
 ```
 
 Then build the app if you haven't already:
@@ -157,23 +157,73 @@ Now, all you have to do is point a DNS record to your server (if you had the bac
 
 ## Updating
 
-To deploy a new version:
+To deploy a new version: run ./update.sh
+
+## Troubleshooting
+This is not an extensive troubleshooting guide, but I'll try my best to add the fixes to issues that I encounter, if I remember.
+
+### 403 when trying to visit admin panel
+Ended up being a Caddy permissions issue for me. Fix:
+
+Install ACL:
+```bash
+sudo apt install -y acl
+```
+
+Then, allow Caddy to have the `x` permission on every dir leading up to your `/public` dir. This allows for path traversal. For example, if your app was at /path/to/app/public:
+```bash
+sudo setfacl -m u:caddy:x /path
+sudo setfacl -m u:caddy:x /path/to
+sudo setfacl -m u:caddy:x /path/to/app
+```
+
+On the `/public` dir, set both `r` and `x` so Caddy can not only enter the dir, but also list its contents.
+```bash
+sudo setfacl -m u:caddy:rx /path/to/app/public
+```
+
+Finally, recursively give Caddy `r` permission on all files in `/public`, and give `x` on directories only (which is what the uppercase `X` means).
+```bash
+sudo setfacl -R -m u:caddy:rX /path/to/app/public
+```
+
+If you were curious why you need to give it the `x` permission on all parent dirs, this is because Linux path traversal requires the user/group accessing the path to be able to access all parent dirs, so even though Caddy only needs to access /public, it must have access to all parents as well.
+
+But why specifically these permissions? Something that trips people up is that the letters `r`, `w`, and `x` mean totally different things for files and directories. In this case, we are setting:
+- `x` on parent dirs (e.g. `/path`, `/path/to`, etc) so Caddy can traverse
+- `rx` on `/path/to/app/public` so Caddy can list contents
+- `rX` recursively on `/path/to/app/public`'s contents so Caddy can read files and traverse subdirectories
+
+Test that your changes worked:
+```bash
+sudo -u caddy ls -A /path/to/app/public
+```
+
+### 404 when trying to visit admin panel
+This could obviously be caused by many things but for me it was yet another permissions issue. Now I'm starting to realize that all of these issues would be gone if I had just put the site in /var/www... 
+
+Anyways, I might as well document my fix here. I ran commands similar to the ones I used to fix the Caddy permissions:
 
 ```bash
-# Pull latest version
-git pull
+# Set parents' perms
+sudo setfacl -m u:www-data:x /path
+sudo setfacl -m u:www-data:x /path/to
 
-# Ensure all latest packages are installed
-composer install --no-dev --optimize-autoloader
-npm ci
+# Set a baseline (recursively deny r/w, allow x on dirs only)
+sudo setfacl -R -m u:www-data:--X /path/to/app
 
-# Build app
-npm run build
+# Give necessary files/dirs rX
+for dir in app bootstrap config public resources routes vendor; do
+    sudo setfacl -R -m u:www-data:rX /path/to/app/$dir
+done
 
-php artisan migrate --force
-php artisan optimize
+# Set perms for writable dirs
+for dir in storage bootstrap/cache database; do
+    sudo setfacl -R -m u:www-data:rwX /path/to/app/$dir
+done
+```
 
-# Reload systemd services
-sudo systemctl reload php8.4-fpm
-sudo systemctl reload caddy
+Test that your changes worked:
+```bash
+sudo -u www-data ls -A /path/to/app
 ```
