@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('content')
-  <section class="my-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+  <section class="mt-2 mb-8 md:mt-6 md:mb-8 flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
     <div>
       @php
         $titles = [
