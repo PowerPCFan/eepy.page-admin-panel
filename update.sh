@@ -41,8 +41,8 @@ php artisan migrate --force
 echo "Optimizing..."
 php artisan optimize
 
-echo "Reloading services..."
+echo "Restarting services..."
 sudo systemctl reload php8.4-fpm
-sudo systemctl reload caddy
+sudo systemctl restart caddy
 
-echo "Update complete. If Caddy failed to reload, run \`sudo systemctl restart caddy\`."
+echo "Update complete."
