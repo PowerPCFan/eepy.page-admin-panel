@@ -334,7 +334,7 @@ final class AdminController extends Controller
         abort_unless($token, 401, 'An API token is required.');
 
         $response = $this->backendRequest()
-            ->withHeaders(['X-Auth-Token' => $token, 'Accept' => 'application/json'])
+            ->withHeaders(['Authorization' => "Bearer {$token}", 'Accept' => 'application/json'])
             ->timeout(20)
             ->send($method, $path, ['query' => $query, 'json' => $body]);
 
@@ -412,7 +412,7 @@ final class AdminController extends Controller
 
         try {
             $response = $this->backendRequest()
-                ->withHeaders(['X-Auth-Token' => $token])
+                ->withHeaders(['Authorization' => "Bearer {$token}"])
                 ->patch('/logout');
 
             if ($response->failed() && $response->status() !== 460) {
@@ -485,7 +485,7 @@ final class AdminController extends Controller
             'user_id' => $userId,
             'refresh_token' => $tokens['refresh_token'],
             'access_token' => $accessToken,
-            'snippet' => "document.cookie = 'auth-token=' + encodeURIComponent(".json_encode($accessToken).") + '; Path=/; Secure; SameSite=Strict';\ndocument.cookie = 'logged-in=yes; Path=/';\nlocalStorage.setItem('logged-in', 'y');\nlocation.reload();",
+            'snippet' => "document.cookie = '__Host-auth-token=' + encodeURIComponent(".json_encode($accessToken).") + '; Path=/; Secure; SameSite=Strict';\ndocument.cookie = 'logged-in=yes; Path=/';\nlocalStorage.setItem('logged-in', 'y');\nlocation.reload();",
         ]);
     }
 
@@ -537,7 +537,7 @@ final class AdminController extends Controller
 
     private function backendCookieName(): string
     {
-        return 'refresh-token';
+        return '__Host-refresh-token';
     }
 
     private function viewData(Request $request, string $page): array
