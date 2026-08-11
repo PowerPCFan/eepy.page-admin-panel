@@ -52,7 +52,10 @@ final class AdminController extends Controller
             return $redirect;
         }
 
-        return view('admin.utilities', $this->viewData($request, 'utilities'));
+        return view('admin.utilities', [
+            ...$this->viewData($request, 'utilities'),
+            'currentStatusMessage' => $this->fetchCurrentStatusMessage(),
+        ]);
     }
 
     public function componentTest(Request $request): View|RedirectResponse
@@ -204,7 +207,7 @@ final class AdminController extends Controller
     public function action(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'in:verify,permission,permissions,add-tld,remove-tld,delete-domain,edit-domain,delete-account,reinstate,full-admin,manual-login,desync'],
+            'name' => ['required', 'string', 'in:verify,permission,permissions,add-tld,remove-tld,delete-domain,edit-domain,delete-account,reinstate,full-admin,manual-login,desync,set-status,clear-status'],
             'user_id' => ['required', 'string', 'max:255'],
             'permission' => ['nullable', 'string', 'max:255'],
             'value' => ['nullable', 'string', 'max:2048'],
@@ -219,6 +222,7 @@ final class AdminController extends Controller
             'values.*' => ['required', 'string', 'max:4096'],
             'reason' => ['nullable', 'string', 'max:2048'],
             'reasons' => ['nullable', 'string', 'max:4096'],
+            'message' => ['nullable', 'required_if:name,set-status', 'string', 'max:2048'],
             'send_email' => ['nullable', 'boolean'],
         ]);
 
@@ -263,6 +267,8 @@ final class AdminController extends Controller
             ]),
             'full-admin' => $this->api($request, 'POST', '/admin/user/full-admin', body: ['user_id' => $validated['user_id']]),
             'manual-login' => $this->manualLogin($request, $validated['user_id']),
+            'set-status' => $this->api($request, 'POST', '/admin/status', body: ['message' => $validated['message']]),
+            'clear-status' => $this->api($request, 'POST', '/admin/status/clear'),
             'desync' => $this->desync($request),
         };
 
@@ -538,6 +544,27 @@ final class AdminController extends Controller
     private function backendCookieName(): string
     {
         return '__Host-refresh-token';
+    }
+
+    private function fetchCurrentStatusMessage(): ?string
+    {
+        try {
+            $response = $this->backendRequest()->get('/status');
+
+            if ($response->failed()) {
+                Log::warning('Status fetch failed', ['status' => $response->status()]);
+
+                return null;
+            }
+
+            $message = $response->json('message');
+
+            return is_string($message) && trim($message) !== '' ? $message : null;
+        } catch (\Throwable $exception) {
+            Log::warning('Status fetch request failed', ['exception' => $exception->getMessage()]);
+
+            return null;
+        }
     }
 
     private function viewData(Request $request, string $page): array
