@@ -110,8 +110,7 @@ final class AdminController extends Controller
             ])
             ->timeout(20)
             ->post('/login', [
-                'username_hash' => hash('sha256', $validated['username']),
-                'plain_username' => $validated['username'],
+                'username' => $validated['username'],
                 'password' => $validated['password'],
             ]);
 
