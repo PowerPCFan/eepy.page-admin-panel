@@ -34,13 +34,33 @@
       <x-input name="term" required placeholder="Search by {{ old('type', 'username') }}"
         value="{{ old('term') }}" />
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <x-checkbox name="replace" label="Replace previous results" checked />
+        <div class="flex flex-wrap items-center gap-4">
+          <x-checkbox name="replace" label="Replace previous results" checked />
+          <div id="regex-container">
+            <x-checkbox id="regex-checkbox" name="regex" label="Pattern / Substring search (Regex)" :checked="old('regex', false)" />
+          </div>
+        </div>
         <x-button variant="accent">
           <x-materialsymbols icon="search" />
           Search
         </x-button>
       </div>
     </form>
+    <script>
+      (() => {
+        const searchType = document.getElementById('search-type');
+        const regexContainer = document.getElementById('regex-container');
+        const updateRegexVisibility = () => {
+          if (regexContainer && searchType) {
+            regexContainer.style.display = searchType.value === 'username' ? '' : 'none';
+          }
+        };
+        if (searchType && regexContainer) {
+          searchType.addEventListener('change', updateRegexVisibility);
+          updateRegexVisibility();
+        }
+      })();
+    </script>
   </x-panel>
 
   <div class="mt-12 mb-4 flex items-center justify-between gap-4">

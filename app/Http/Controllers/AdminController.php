@@ -173,6 +173,7 @@ final class AdminController extends Controller
             'type' => ['required', 'in:username,id,domain,email,referral,ips'],
             'term' => ['required', 'string', 'max:2048'],
             'replace' => ['nullable', 'boolean'],
+            'regex' => ['nullable', 'boolean'],
         ]);
 
         $path = match ($validated['type']) {
@@ -185,18 +186,35 @@ final class AdminController extends Controller
         };
 
         try {
-            $response = $validated['type'] === 'ips'
-                ? $this->api($request, 'POST', $path, body: ['ips' => preg_split('/\R/', $validated['term'], -1, PREG_SPLIT_NO_EMPTY)])
-                : $this->api($request, 'GET', $path, query: [$validated['type'] === 'id' ? 'id' : $validated['type'] => $validated['term']]);
+            if ($validated['type'] === 'ips') {
+                $response = $this->api($request, 'POST', $path, body: ['ips' => preg_split('/\R/', $validated['term'], -1, PREG_SPLIT_NO_EMPTY)]);
+            } elseif ($validated['type'] === 'username') {
+                $query = ['username' => $validated['term']];
+                if (!empty($validated['regex'])) {
+                    $query['regex'] = 'true';
+                }
+                $response = $this->api($request, 'GET', $path, query: $query);
+            } else {
+                $response = $this->api($request, 'GET', $path, query: [$validated['type'] === 'id' ? 'id' : $validated['type'] => $validated['term']]);
+            }
         } catch (HttpExceptionInterface $exception) {
-            if ($exception->getStatusCode() !== 404) {
+            if ($exception->getStatusCode() === 404) {
+                $response = null;
+            } elseif ($exception->getStatusCode() === 400) {
+                return back()->withInput()->withErrors(['term' => 'Invalid regex pattern provided.']);
+            } else {
                 throw $exception;
             }
-
-            $response = null;
         }
 
-        $results = $response === null ? [] : ($validated['type'] === 'ips' ? $response : [$response]);
+        if ($response === null) {
+            $results = [];
+        } elseif (is_array($response) && array_is_list($response)) {
+            $results = $response;
+        } else {
+            $results = [$response];
+        }
+
         $users = ($validated['replace'] ?? true) ? $results : [...$request->session()->get('users', []), ...$results];
         $request->session()->put('users', $users);
 
