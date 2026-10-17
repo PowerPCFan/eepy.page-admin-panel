@@ -170,8 +170,8 @@ final class AdminController extends Controller
     public function search(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'in:username,id,domain,email,referral,ips'],
-            'term' => ['required', 'string', 'max:2048'],
+            'type' => ['required', 'in:username,id,domain,email,referral,ips,flagged'],
+            'term' => ['required_unless:type,flagged', 'nullable', 'string', 'max:2048'],
             'replace' => ['nullable', 'boolean'],
             'regex' => ['nullable', 'boolean'],
         ]);
@@ -183,11 +183,14 @@ final class AdminController extends Controller
             'email' => '/admin/user/get/email',
             'referral' => '/admin/user/get/referral',
             'ips' => '/admin/user/get/ips',
+            'flagged' => '/admin/users/flagged',
         };
 
         try {
-            if ($validated['type'] === 'ips') {
-                $response = $this->api($request, 'POST', $path, body: ['ips' => preg_split('/\R/', $validated['term'], -1, PREG_SPLIT_NO_EMPTY)]);
+            if ($validated['type'] === 'flagged') {
+                $response = $this->api($request, 'GET', $path);
+            } elseif ($validated['type'] === 'ips') {
+                $response = $this->api($request, 'POST', $path, body: ['ips' => preg_split('/\R/', $validated['term'] ?? '', -1, PREG_SPLIT_NO_EMPTY)]);
             } elseif ($validated['type'] === 'username') {
                 $query = ['username' => $validated['term']];
                 if (!empty($validated['regex'])) {
@@ -224,7 +227,7 @@ final class AdminController extends Controller
     public function action(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'in:verify,permission,permissions,add-tld,remove-tld,delete-domain,edit-domain,delete-account,reinstate,full-admin,manual-login,desync,set-status,clear-status'],
+            'name' => ['required', 'string', 'in:verify,permission,permissions,add-tld,remove-tld,delete-domain,edit-domain,delete-account,reinstate,full-admin,manual-login,desync,set-status,clear-status,toggle-disabled,risk-update'],
             'user_id' => ['required', 'string', 'max:255'],
             'permission' => ['nullable', 'string', 'max:255'],
             'value' => ['nullable', 'string', 'max:2048'],
@@ -241,6 +244,10 @@ final class AdminController extends Controller
             'reasons' => ['nullable', 'string', 'max:4096'],
             'message' => ['nullable', 'required_if:name,set-status', 'string', 'max:2048'],
             'send_email' => ['nullable', 'boolean'],
+            'disabled' => ['nullable', 'string', 'in:true,false,1,0'],
+            'score' => ['nullable', 'integer', 'between:0,100'],
+            'locked' => ['nullable', 'string', 'in:true,false,1,0'],
+            'clear_flags' => ['nullable', 'string', 'in:true,false,1,0'],
         ]);
 
         $name = $validated['name'];
@@ -287,6 +294,17 @@ final class AdminController extends Controller
             'set-status' => $this->api($request, 'POST', '/admin/status', body: ['message' => $validated['message']]),
             'clear-status' => $this->api($request, 'POST', '/admin/status/clear'),
             'desync' => $this->desync($request),
+            'toggle-disabled' => $this->api($request, 'POST', '/admin/user/disabled', body: [
+                'user_id' => $validated['user_id'],
+                'disabled' => filter_var($validated['disabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'reason' => $validated['reason'] ?? '',
+            ]),
+            'risk-update' => $this->api($request, 'POST', '/admin/user/risk/update', body: array_filter([
+                'user_id' => $validated['user_id'],
+                'score' => isset($validated['score']) ? (int) $validated['score'] : null,
+                'locked' => isset($validated['locked']) ? filter_var($validated['locked'], FILTER_VALIDATE_BOOLEAN) : null,
+                'clear_flags' => filter_var($validated['clear_flags'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            ], static fn ($val) => $val !== null)),
         };
 
         $route = $name === 'desync' ? 'admin.utilities' : 'admin.user';
@@ -303,6 +321,8 @@ final class AdminController extends Controller
             'remove-tld' => 'Successfully removed TLD.',
             'add-tld' => 'Successfully added TLD.',
             'desync' => 'DNS desynchronization check completed.',
+            'toggle-disabled' => 'Account disabled state updated.',
+            'risk-update' => 'Account risk profile updated.',
         ];
 
         return to_route($route)->with('success', $readableMap[$name] ?? (ucfirst(str_replace('-', ' ', $name)).' completed.'));

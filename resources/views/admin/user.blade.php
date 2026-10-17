@@ -26,13 +26,15 @@
         <label for="search-type" class="block text-xs text-muted">Search by</label>
         <select id="search-type" name="type"
           class="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-foreground outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/20">
-          @foreach (['username' => 'Username', 'id' => 'ID', 'domain' => 'Domain', 'email' => 'Email', 'referral' => 'Referral code', 'ips' => 'IP addresses'] as $type => $label)
+          @foreach (['username' => 'Username', 'id' => 'ID', 'domain' => 'Domain', 'email' => 'Email', 'referral' => 'Referral code', 'ips' => 'IP addresses', 'flagged' => 'Flagged / At-Risk Accounts'] as $type => $label)
             <option value="{{ $type }}" @selected(old('type', 'username') === $type)>{{ $label }}</option>
           @endforeach
         </select>
       </div>
-      <x-input name="term" required placeholder="Search by {{ old('type', 'username') }}"
-        value="{{ old('term') }}" />
+      <div id="search-term-container">
+        <x-input id="search-term" name="term" placeholder="Search by {{ old('type', 'username') }}"
+          value="{{ old('term') }}" />
+      </div>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-4">
           <x-checkbox name="replace" label="Replace previous results" checked />
@@ -50,14 +52,28 @@
       (() => {
         const searchType = document.getElementById('search-type');
         const regexContainer = document.getElementById('regex-container');
-        const updateRegexVisibility = () => {
-          if (regexContainer && searchType) {
-            regexContainer.style.display = searchType.value === 'username' ? '' : 'none';
+        const termInput = document.getElementById('search-term');
+        const updateSearchForm = () => {
+          if (!searchType) return;
+          const isUsername = searchType.value === 'username';
+          const isFlagged = searchType.value === 'flagged';
+          if (regexContainer) {
+            regexContainer.style.display = isUsername ? '' : 'none';
+          }
+          if (termInput) {
+            if (isFlagged) {
+              termInput.required = false;
+              termInput.placeholder = 'Listing all flagged & at-risk accounts (press Search)';
+              termInput.value = '';
+            } else {
+              termInput.required = true;
+              termInput.placeholder = 'Search by ' + searchType.value;
+            }
           }
         };
-        if (searchType && regexContainer) {
-          searchType.addEventListener('change', updateRegexVisibility);
-          updateRegexVisibility();
+        if (searchType) {
+          searchType.addEventListener('change', updateSearchForm);
+          updateSearchForm();
         }
       })();
     </script>
@@ -82,12 +98,38 @@
         $sessions = $user['sessions'] ?? [];
         $ownedTlds = $user['owned-tlds'] ?? [];
         $country = is_array($user['country'] ?? null) ? $user['country'] : [];
+        $risk = $user['risk'] ?? [];
+        $isDisabled = ($user['disabled'] ?? false) || ($risk['disabled'] ?? false);
+        $isBanned = $user['banned'] ?? false;
+        $isVerified = $user['verified'] ?? false;
+        $riskScore = $risk['score'] ?? 0;
+        $isLocked = $risk['locked'] ?? false;
+        $disableReasons = $risk['disable_reasons'] ?? [];
+        $riskFlags = $risk['flags'] ?? [];
+        $deviceId = $risk['device_id'] ?? null;
+
+        if ($isBanned) {
+            $accountState = 'Banned';
+            $badgeClass = 'bg-alert text-alert-foreground';
+        } elseif ($isDisabled) {
+            $accountState = 'Disabled';
+            $badgeClass = 'bg-destructive/20 border border-destructive/40 text-destructive';
+        } elseif (!$isVerified) {
+            $accountState = 'Unverified';
+            $badgeClass = 'bg-secondary text-muted';
+        } elseif ($riskScore >= 40) {
+            $accountState = 'Flagged';
+            $badgeClass = 'bg-amber-500/20 border border-amber-500/40 text-amber-500';
+        } else {
+            $accountState = 'Active';
+            $badgeClass = 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-500';
+        }
       @endphp
       <article class="overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-black/10">
         <div
           class="flex flex-col justify-between gap-4 border-b border-border p-5 sm:flex-row sm:items-start sm:px-6">
           <div>
-            <div class="text-xl font-semibold {{ $user['banned'] ?? false ? 'text-destructive' : '' }}">
+            <div class="text-xl font-semibold {{ $isBanned ? 'text-destructive' : '' }}">
               @if (!empty(data_get($country, 'country_flag.emoji')))
                 <span
                   class="mr-1 inline-block align-[-0.5px]"
@@ -99,9 +141,14 @@
                 </span>
               @endif
               {{ $user['username'] ?? 'Unknown user' }}
-              @if ($user['banned'] ?? false)
-                <span
-                  class="ml-2 rounded bg-alert px-2 py-1 font-mono text-[10px] uppercase text-alert-foreground">banned</span>
+              <span class="ml-2 rounded px-2 py-0.5 font-mono text-[10px] uppercase font-bold {{ $badgeClass }}">
+                {{ $accountState }}
+              </span>
+              @if ($isLocked)
+                <span class="ml-1 inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 font-mono text-[10px] text-muted" title="Risk profile locked">
+                  <x-materialsymbols icon="lock" size="12px" />
+                  LOCKED
+                </span>
               @endif
             </div>
             <div class="mt-1 break-all font-mono text-xs text-muted">{{ $user['id'] ?? '' }}</div>
@@ -148,7 +195,7 @@
                   <br><br>
                   This tool can be <strong>extremely dangerous if used improperly</strong>, as it allows <strong>direct access to a user's account</strong> without consent.
                   <br><br>
-                  To adhere to the <strong>eepy.page terms of service and privacy policies</strong>, you must ensure that this action is </strong>performed responsibly</strong> and <strong>only when absolutely necessary</strong>.
+                  To adhere to the <strong>eepy.page terms of service and privacy policies</strong>, you must ensure that this action is performed responsibly and <strong>only when absolutely necessary</strong>.
                   <br><br>
                   Some examples of allowed uses:
                   <ul class="list-disc pl-6">
@@ -192,9 +239,98 @@
                   </x-confirm-modal>
                 </form>
               @endif
+              <form id="toggle-disabled-{{ $user['id'] ?? '' }}" method="POST" action="{{ route('admin.action') }}">
+                @csrf
+                <input type="hidden" name="name" value="toggle-disabled">
+                <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                <input type="hidden" name="disabled" value="{{ $isDisabled ? 'false' : 'true' }}">
+                <x-confirm-modal
+                  id="toggle-disabled-modal-{{ $user['id'] ?? '' }}"
+                  form="toggle-disabled-{{ $user['id'] ?? '' }}"
+                  title="{{ $isDisabled ? 'Enable account' : 'Disable account' }}"
+                  confirm-label="{{ $isDisabled ? 'Enable account' : 'Disable account' }}"
+                  confirm-variant="{{ $isDisabled ? 'accent' : 'danger' }}"
+                  icon="{{ $isDisabled ? 'lock-open' : 'block' }}"
+                >
+                  <x-slot:trigger>
+                    <x-button type="button" variant="{{ $isDisabled ? 'accent' : 'ghost' }}" size="small">
+                      <x-materialsymbols icon="{{ $isDisabled ? 'lock-open' : 'block' }}" size="16px" />
+                      {{ $isDisabled ? 'Enable account' : 'Disable account' }}
+                    </x-button>
+                  </x-slot:trigger>
+                  @if ($isDisabled)
+                    <p>Are you sure you would like to <strong>enable</strong> this account? The user will be permitted to authenticate and access their services again.</p>
+                  @else
+                    <p>Are you sure you would like to <strong>disable</strong> this account? Active sessions will be invalidated and future logins blocked until manually re-enabled.</p>
+                    <div class="mt-3">
+                      <label for="disable-reason-{{ $user['id'] ?? '' }}" class="block text-xs text-muted mb-1">Reason for disabling</label>
+                      <x-input
+                        id="disable-reason-{{ $user['id'] ?? '' }}"
+                        form="toggle-disabled-{{ $user['id'] ?? '' }}"
+                        name="reason"
+                        placeholder="e.g. Multiple alternate accounts detected"
+                      />
+                    </div>
+                  @endif
+                </x-confirm-modal>
+              </form>
+              <form id="risk-update-{{ $user['id'] ?? '' }}" method="POST" action="{{ route('admin.action') }}">
+                @csrf
+                <input type="hidden" name="name" value="risk-update">
+                <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                <x-confirm-modal
+                  id="risk-update-modal-{{ $user['id'] ?? '' }}"
+                  form="risk-update-{{ $user['id'] ?? '' }}"
+                  title="Edit Risk Profile"
+                  confirm-label="Save changes"
+                  confirm-variant="accent"
+                  icon="security"
+                >
+                  <x-slot:trigger>
+                    <x-button type="button" variant="ghost" size="small">
+                      <x-materialsymbols icon="security" size="16px" />
+                      Risk ({{ $riskScore }})
+                    </x-button>
+                  </x-slot:trigger>
+                  <div class="grid gap-4">
+                    <div>
+                      <label for="risk-score-{{ $user['id'] ?? '' }}" class="block text-xs text-muted mb-1">Risk Score (0 - 100)</label>
+                      <x-input
+                        id="risk-score-{{ $user['id'] ?? '' }}"
+                        form="risk-update-{{ $user['id'] ?? '' }}"
+                        name="score"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value="{{ $riskScore }}"
+                      />
+                    </div>
+                    <div>
+                      <input type="hidden" form="risk-update-{{ $user['id'] ?? '' }}" name="locked" value="false">
+                      <x-checkbox
+                        id="risk-locked-{{ $user['id'] ?? '' }}"
+                        form="risk-update-{{ $user['id'] ?? '' }}"
+                        name="locked"
+                        value="true"
+                        :checked="$isLocked"
+                        label="Lock risk profile (prevents automated adjustments)"
+                      />
+                    </div>
+                    <div>
+                      <x-checkbox
+                        id="risk-clear-flags-{{ $user['id'] ?? '' }}"
+                        form="risk-update-{{ $user['id'] ?? '' }}"
+                        name="clear_flags"
+                        value="true"
+                        label="Clear active risk flags"
+                      />
+                    </div>
+                  </div>
+                </x-confirm-modal>
+              </form>
             </div>
           </div>
-          @if ($user['banned'] ?? false)
+          @if ($isBanned)
             <form id="reinstate-{{ $user['id'] ?? '' }}" method="POST" action="{{ route('admin.action') }}" class="flex flex-wrap items-center gap-3">
               @csrf
               <input type="hidden" name="name" value="reinstate">
@@ -224,12 +360,90 @@
             <x-stat title="Email">{{ $user['email'] ?? 'Unavailable' }}</x-stat>
             <x-stat title="Created">{{ !empty($user['created']) ? date('M j, Y H:i T', $user['created']) : 'Unknown' }}</x-stat>
             <x-stat title="Last login">{{ !empty($user['last_login']) ? date('M j, Y H:i T', $user['last_login']) : 'Never' }}</x-stat>
+            <x-stat title="Account state">
+              <span class="font-bold {{ $isDisabled ? 'text-destructive' : ($isBanned ? 'text-destructive' : ($riskScore >= 40 ? 'text-amber-500' : 'text-emerald-500')) }}">
+                {{ $accountState }}
+              </span>
+            </x-stat>
+            <x-stat title="Risk score">
+              <span class="font-bold {{ $riskScore >= 75 ? 'text-destructive' : ($riskScore >= 40 ? 'text-amber-500' : 'text-foreground') }}">
+                {{ $riskScore }}/100
+              </span>
+              @if ($isLocked)
+                <span class="ml-1 text-xs text-muted font-normal">(Locked)</span>
+              @endif
+            </x-stat>
             <x-stat title="Beta enrolled">{{ $user['beta-enroll'] ?? false ? 'Yes' : 'No' }}</x-stat>
             <x-stat title="Domains">{{ count($domains) }}</x-stat>
             <x-stat title="Active sessions">{{ count($sessions) }}</x-stat>
             <x-stat title="API keys">{{ $user['api_key_amount'] ?? 0 }}</x-stat>
-            <x-stat title="Account verified">{{ ($user['verified'] ?? false) ? 'Yes' : 'No' }}</x-stat>
+            <x-stat title="Account verified">{{ $isVerified ? 'Yes' : 'No' }}</x-stat>
           </dl>
+          <details class="border-t border-border pt-4" @if($riskScore >= 40 || $isDisabled) open @endif>
+            <summary class="cursor-pointer font-semibold flex items-center justify-between">
+              <span>Security & Alt-Account Risk</span>
+              <span class="text-xs font-mono font-bold {{ $riskScore >= 75 ? 'text-destructive' : ($riskScore >= 40 ? 'text-amber-500' : 'text-muted') }}">
+                Score: {{ $riskScore }}/100 @if($isLocked) [LOCKED] @endif
+              </span>
+            </summary>
+            <div class="mt-4 grid gap-4 text-sm">
+              <dl class="grid gap-2 sm:grid-cols-2">
+                <x-detail label="Client Device Identifier" :value="$deviceId ?? 'None recorded'" mono />
+                <x-detail label="Disabled State" :value="$isDisabled ? 'Yes (Access Blocked)' : 'No'" />
+                @if (!empty($disableReasons))
+                  <div class="sm:col-span-2">
+                    <span class="text-xs text-muted block mb-1">Disable reasons</span>
+                    <ul class="list-disc pl-5 text-destructive font-mono text-xs space-y-0.5">
+                      @foreach ($disableReasons as $reason)
+                        <li>{{ $reason }}</li>
+                      @endforeach
+                    </ul>
+                  </div>
+                @endif
+              </dl>
+              <div>
+                <h3 class="font-semibold mb-2">Detected Risk Flags ({{ count($riskFlags) }})</h3>
+                @if (empty($riskFlags))
+                  <p class="text-xs text-muted font-mono">No active risk flags detected on this account.</p>
+                @else
+                  <div class="overflow-x-auto rounded-lg border border-border">
+                    <table class="w-full text-xs">
+                      <thead class="border-b border-border bg-secondary/30 text-muted">
+                        <tr>
+                          <th class="px-3 py-2 text-left">Flag</th>
+                          <th class="px-3 py-2 text-left">Score</th>
+                          <th class="px-3 py-2 text-left">Reason</th>
+                          <th class="px-3 py-2 text-left">Type</th>
+                          <th class="px-3 py-2 text-left">Detected</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-border">
+                        @foreach ($riskFlags as $flagKey => $flag)
+                          <tr>
+                            <td class="px-3 py-2 font-mono font-bold text-foreground">{{ $flagKey }}</td>
+                            <td class="px-3 py-2 font-mono text-amber-500 font-semibold">+{{ $flag['score'] ?? 0 }}</td>
+                            <td class="px-3 py-2">{{ $flag['reason'] ?? '' }}</td>
+                            <td class="px-3 py-2 text-muted font-mono">
+                              @if (!empty($flag['permanent']))
+                                Permanent
+                              @elseif (!empty($flag['expires_at']))
+                                Expires {{ date('M j, Y H:i T', $flag['expires_at']) }}
+                              @else
+                                Temporary
+                              @endif
+                            </td>
+                            <td class="px-3 py-2 text-muted font-mono">
+                              {{ !empty($flag['detected_at']) ? date('M j, Y H:i T', $flag['detected_at']) : 'Unknown' }}
+                            </td>
+                          </tr>
+                        @endforeach
+                      </tbody>
+                    </table>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </details>
           <details class="border-t border-border pt-4">
             <summary class="cursor-pointer font-semibold">Location and access history</summary>
             <div class="mt-4 grid gap-4 text-sm">
