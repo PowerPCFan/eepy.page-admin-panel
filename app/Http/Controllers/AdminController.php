@@ -127,8 +127,10 @@ final class AdminController extends Controller
         }
 
         if ($response->status() === 403) {
+            $detail = $response->json('detail');
+
             return back()->withInput(['username' => $validated['username']])
-                ->withErrors(['login' => 'This account must be verified before it can sign in.']);
+                ->withErrors(['login' => is_string($detail) && $detail !== '' ? $detail : 'This account must be verified before it can sign in.']);
         }
 
         if ($response->status() === 429) {
@@ -218,7 +220,8 @@ final class AdminController extends Controller
             $results = [$response];
         }
 
-        $users = ($validated['replace'] ?? true) ? $results : [...$request->session()->get('users', []), ...$results];
+        $replace = $request->has('replace') ? $request->boolean('replace') : true;
+        $users = $replace ? $results : [...$request->session()->get('users', []), ...$results];
         $request->session()->put('users', $users);
 
         return to_route('admin.user')->with('success', count($results).' '.str('account')->plural(count($results)).' loaded.');

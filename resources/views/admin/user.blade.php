@@ -37,9 +37,10 @@
       </div>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-4">
-          <x-checkbox name="replace" label="Replace previous results" checked />
+          <input type="hidden" name="replace" value="0">
+          <x-checkbox name="replace" value="1" label="Replace previous results" :checked="(bool) old('replace', true)" />
           <div id="regex-container">
-            <x-checkbox id="regex-checkbox" name="regex" label="Pattern / Substring search (Regex)" :checked="old('regex', false)" />
+            <x-checkbox id="regex-checkbox" name="regex" value="1" label="Pattern / Substring search (Regex)" :checked="(bool) old('regex', false)" />
           </div>
         </div>
         <x-button variant="accent">
@@ -99,6 +100,9 @@
         $ownedTlds = $user['owned-tlds'] ?? [];
         $country = is_array($user['country'] ?? null) ? $user['country'] : [];
         $risk = $user['risk'] ?? [];
+        $riskThresholds = $user['risk_thresholds'] ?? [];
+        $flaggedThreshold = $riskThresholds['flagged'] ?? 40;
+        $autoDisableThreshold = $riskThresholds['auto_disable'] ?? 80;
         $isDisabled = ($user['disabled'] ?? false) || ($risk['disabled'] ?? false);
         $isBanned = $user['banned'] ?? false;
         $isVerified = $user['verified'] ?? false;
@@ -106,6 +110,10 @@
         $isLocked = $risk['locked'] ?? false;
         $disableReasons = $risk['disable_reasons'] ?? [];
         $riskFlags = $risk['flags'] ?? [];
+        $nowEpoch = time();
+        $activeRiskFlagsCount = collect($riskFlags)->filter(
+            fn ($f) => !empty($f['permanent']) || empty($f['expires_at']) || $f['expires_at'] > $nowEpoch
+        )->count();
         $deviceId = $risk['device_id'] ?? null;
 
         if ($isBanned) {
@@ -117,7 +125,7 @@
         } elseif (!$isVerified) {
             $accountState = 'Unverified';
             $badgeClass = 'bg-secondary text-muted';
-        } elseif ($riskScore >= 40) {
+        } elseif ($riskScore >= $flaggedThreshold) {
             $accountState = 'Flagged';
             $badgeClass = 'bg-amber-500/20 border border-amber-500/40 text-amber-500';
         } else {
@@ -141,13 +149,9 @@
                 </span>
               @endif
               {{ $user['username'] ?? 'Unknown user' }}
-              <span class="ml-2 rounded px-2 py-0.5 font-mono text-[10px] uppercase font-bold {{ $badgeClass }}">
-                {{ $accountState }}
-              </span>
-              @if ($isLocked)
-                <span class="ml-1 inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 font-mono text-[10px] text-muted" title="Risk profile locked">
-                  <x-materialsymbols icon="lock" size="12px" />
-                  LOCKED
+              @if ($accountState !== 'Active')
+                <span class="ml-2 rounded px-2 py-0.5 font-mono text-[10px] uppercase font-bold {{ $badgeClass }}">
+                  {{ $accountState }}
                 </span>
               @endif
             </div>
@@ -259,7 +263,7 @@
                     </x-button>
                   </x-slot:trigger>
                   @if ($isDisabled)
-                    <p>Are you sure you would like to <strong>enable</strong> this account? The user will be permitted to authenticate and access their services again.</p>
+                    <p>Are you sure you would like to <strong>enable</strong> this account? The user will be permitted to authenticate and access their services again, their risk score and active flags will be <strong>reset</strong>, and their risk profile will be <strong>locked</strong> so future evaluations do not automatically re-disable the account.</p>
                   @else
                     <p>Are you sure you would like to <strong>disable</strong> this account? Active sessions will be invalidated and future logins blocked until manually re-enabled.</p>
                     <div class="mt-3">
@@ -272,60 +276,6 @@
                       />
                     </div>
                   @endif
-                </x-confirm-modal>
-              </form>
-              <form id="risk-update-{{ $user['id'] ?? '' }}" method="POST" action="{{ route('admin.action') }}">
-                @csrf
-                <input type="hidden" name="name" value="risk-update">
-                <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
-                <x-confirm-modal
-                  id="risk-update-modal-{{ $user['id'] ?? '' }}"
-                  form="risk-update-{{ $user['id'] ?? '' }}"
-                  title="Edit Risk Profile"
-                  confirm-label="Save changes"
-                  confirm-variant="accent"
-                  icon="security"
-                >
-                  <x-slot:trigger>
-                    <x-button type="button" variant="ghost" size="small">
-                      <x-materialsymbols icon="security" size="16px" />
-                      Risk ({{ $riskScore }})
-                    </x-button>
-                  </x-slot:trigger>
-                  <div class="grid gap-4">
-                    <div>
-                      <label for="risk-score-{{ $user['id'] ?? '' }}" class="block text-xs text-muted mb-1">Risk Score (0 - 100)</label>
-                      <x-input
-                        id="risk-score-{{ $user['id'] ?? '' }}"
-                        form="risk-update-{{ $user['id'] ?? '' }}"
-                        name="score"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value="{{ $riskScore }}"
-                      />
-                    </div>
-                    <div>
-                      <input type="hidden" form="risk-update-{{ $user['id'] ?? '' }}" name="locked" value="false">
-                      <x-checkbox
-                        id="risk-locked-{{ $user['id'] ?? '' }}"
-                        form="risk-update-{{ $user['id'] ?? '' }}"
-                        name="locked"
-                        value="true"
-                        :checked="$isLocked"
-                        label="Lock risk profile (prevents automated adjustments)"
-                      />
-                    </div>
-                    <div>
-                      <x-checkbox
-                        id="risk-clear-flags-{{ $user['id'] ?? '' }}"
-                        form="risk-update-{{ $user['id'] ?? '' }}"
-                        name="clear_flags"
-                        value="true"
-                        label="Clear active risk flags"
-                      />
-                    </div>
-                  </div>
                 </x-confirm-modal>
               </form>
             </div>
@@ -361,12 +311,12 @@
             <x-stat title="Created">{{ !empty($user['created']) ? date('M j, Y H:i T', $user['created']) : 'Unknown' }}</x-stat>
             <x-stat title="Last login">{{ !empty($user['last_login']) ? date('M j, Y H:i T', $user['last_login']) : 'Never' }}</x-stat>
             <x-stat title="Account state">
-              <span class="font-bold {{ $isDisabled ? 'text-destructive' : ($isBanned ? 'text-destructive' : ($riskScore >= 40 ? 'text-amber-500' : 'text-emerald-500')) }}">
+              <span class="font-bold {{ $isDisabled ? 'text-destructive' : ($isBanned ? 'text-destructive' : ($riskScore >= $flaggedThreshold ? 'text-amber-500' : 'text-emerald-500')) }}">
                 {{ $accountState }}
               </span>
             </x-stat>
             <x-stat title="Risk score">
-              <span class="font-bold {{ $riskScore >= 75 ? 'text-destructive' : ($riskScore >= 40 ? 'text-amber-500' : 'text-foreground') }}">
+              <span class="font-bold {{ $riskScore >= $autoDisableThreshold ? 'text-destructive' : ($riskScore >= $flaggedThreshold ? 'text-amber-500' : 'text-foreground') }}">
                 {{ $riskScore }}/100
               </span>
               @if ($isLocked)
@@ -379,12 +329,9 @@
             <x-stat title="API keys">{{ $user['api_key_amount'] ?? 0 }}</x-stat>
             <x-stat title="Account verified">{{ $isVerified ? 'Yes' : 'No' }}</x-stat>
           </dl>
-          <details class="border-t border-border pt-4" @if($riskScore >= 40 || $isDisabled) open @endif>
-            <summary class="cursor-pointer font-semibold flex items-center justify-between">
-              <span>Security & Alt-Account Risk</span>
-              <span class="text-xs font-mono font-bold {{ $riskScore >= 75 ? 'text-destructive' : ($riskScore >= 40 ? 'text-amber-500' : 'text-muted') }}">
-                Score: {{ $riskScore }}/100 @if($isLocked) [LOCKED] @endif
-              </span>
+          <details class="border-t border-border pt-4" @if($riskScore >= $flaggedThreshold || $isDisabled) open @endif>
+            <summary class="cursor-pointer font-semibold">
+              Security & Alt-Account Risk
             </summary>
             <div class="mt-4 grid gap-4 text-sm">
               <dl class="grid gap-2 sm:grid-cols-2">
@@ -402,7 +349,9 @@
                 @endif
               </dl>
               <div>
-                <h3 class="font-semibold mb-2">Detected Risk Flags ({{ count($riskFlags) }})</h3>
+                <h3 class="font-semibold mb-2">
+                  Detected Risk Flags ({{ $activeRiskFlagsCount }} active{{ count($riskFlags) !== $activeRiskFlagsCount ? ' / ' . count($riskFlags) . ' total' : '' }})
+                </h3>
                 @if (empty($riskFlags))
                   <p class="text-xs text-muted font-mono">No active risk flags detected on this account.</p>
                 @else
@@ -419,15 +368,18 @@
                       </thead>
                       <tbody class="divide-y divide-border">
                         @foreach ($riskFlags as $flagKey => $flag)
-                          <tr>
+                          @php
+                            $flagExpired = empty($flag['permanent']) && !empty($flag['expires_at']) && $flag['expires_at'] <= $nowEpoch;
+                          @endphp
+                          <tr class="{{ $flagExpired ? 'opacity-50' : '' }}">
                             <td class="px-3 py-2 font-mono font-bold text-foreground">{{ $flagKey }}</td>
-                            <td class="px-3 py-2 font-mono text-amber-500 font-semibold">+{{ $flag['score'] ?? 0 }}</td>
+                            <td class="px-3 py-2 font-mono {{ $flagExpired ? 'text-muted line-through' : 'text-amber-500 font-semibold' }}">+{{ $flag['score'] ?? 0 }}</td>
                             <td class="px-3 py-2">{{ $flag['reason'] ?? '' }}</td>
                             <td class="px-3 py-2 text-muted font-mono">
                               @if (!empty($flag['permanent']))
                                 Permanent
                               @elseif (!empty($flag['expires_at']))
-                                Expires {{ date('M j, Y H:i T', $flag['expires_at']) }}
+                                {{ $flagExpired ? 'Expired ' : 'Expires ' }}{{ date('M j, Y H:i T', $flag['expires_at']) }}
                               @else
                                 Temporary
                               @endif
@@ -441,6 +393,113 @@
                     </table>
                   </div>
                 @endif
+              </div>
+
+              <div class="border-t border-border pt-4">
+                <div class="grid gap-3 max-w-xl">
+                  <form id="risk-score-form-{{ $user['id'] ?? '' }}"
+                    method="POST"
+                    action="{{ route('admin.action') }}"
+                    class="grid gap-2 sm:grid-cols-[minmax(120px,1fr)_1fr_auto] sm:items-center"
+                  >
+                    @csrf
+                    <input type="hidden" name="name" value="risk-update">
+                    <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                    <span class="font-mono text-xs text-muted">Risk score</span>
+                    <x-input
+                      class="[&>input]:px-2.5 [&>input]:py-2 [&>input]:text-xs"
+                      name="score"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value="{{ $riskScore }}"
+                    />
+                    <x-confirm-modal
+                      id="risk-score-modal-{{ $user['id'] ?? '' }}"
+                      form="risk-score-form-{{ $user['id'] ?? '' }}"
+                      title="Update risk score"
+                      confirm-label="Update"
+                      confirm-variant="accent"
+                      icon="check"
+                    >
+                      <x-slot:trigger>
+                        <x-button type="button" variant="ghost" size="small">
+                          <x-materialsymbols icon="check" size="16px" />
+                          Update
+                        </x-button>
+                      </x-slot:trigger>
+                      Are you sure you would like to change this user's risk score?
+                      @if (!$isLocked)
+                        <p class="text-xs text-muted mt-2">Note: Manual scores are recomputed from active flags on the user's next login unless the risk profile is locked.</p>
+                      @endif
+                    </x-confirm-modal>
+                  </form>
+
+                  <form id="risk-lock-form-{{ $user['id'] ?? '' }}"
+                    method="POST"
+                    action="{{ route('admin.action') }}"
+                    class="flex items-center justify-between gap-3"
+                  >
+                    @csrf
+                    <input type="hidden" name="name" value="risk-update">
+                    <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                    <input type="hidden" name="locked" value="{{ $isLocked ? 'false' : 'true' }}">
+                    <span class="font-mono text-xs text-muted">Profile lock: {{ $isLocked ? 'Locked' : 'Unlocked' }}</span>
+                    <x-confirm-modal
+                      id="risk-lock-modal-{{ $user['id'] ?? '' }}"
+                      form="risk-lock-form-{{ $user['id'] ?? '' }}"
+                      title="{{ $isLocked ? 'Unlock risk profile' : 'Lock risk profile' }}"
+                      confirm-label="{{ $isLocked ? 'Unlock' : 'Lock' }}"
+                      confirm-variant="{{ $isLocked ? 'danger' : 'accent' }}"
+                      icon="{{ $isLocked ? 'lock-open' : 'lock' }}"
+                    >
+                      <x-slot:trigger>
+                        <x-button
+                          type="button"
+                          variant="{{ $isLocked ? 'danger' : 'ghost' }}"
+                          size="small"
+                        >
+                          <x-materialsymbols icon="{{ $isLocked ? 'lock-open' : 'lock' }}" size="16px" />
+                          {{ $isLocked ? 'Unlock' : 'Lock' }}
+                        </x-button>
+                      </x-slot:trigger>
+                      Are you sure you would like to {{ $isLocked ? 'unlock' : 'lock' }} this user's risk profile?
+                      @if (!$isLocked)
+                        <p class="text-xs text-muted mt-2">When locked, the user's current risk profile will be permanently set until the lock is removed.</p>
+                      @endif
+                    </x-confirm-modal>
+                  </form>
+
+                  @if (!empty($riskFlags))
+                    <form id="risk-clear-form-{{ $user['id'] ?? '' }}"
+                      method="POST"
+                      action="{{ route('admin.action') }}"
+                      class="flex items-center justify-between gap-3 border-t border-border/50 pt-2"
+                    >
+                      @csrf
+                      <input type="hidden" name="name" value="risk-update">
+                      <input type="hidden" name="user_id" value="{{ $user['id'] ?? '' }}">
+                      <input type="hidden" name="clear_flags" value="true">
+                      <span class="font-mono text-xs text-muted">Active flags ({{ count($riskFlags) }})</span>
+                      <x-confirm-modal
+                        id="risk-clear-modal-{{ $user['id'] ?? '' }}"
+                        form="risk-clear-form-{{ $user['id'] ?? '' }}"
+                        title="Clear active risk flags"
+                        confirm-label="Clear all flags"
+                        confirm-variant="danger"
+                        icon="delete-sweep"
+                      >
+                        <x-slot:trigger>
+                          <x-button type="button" variant="danger" size="small">
+                            <x-materialsymbols icon="delete-sweep" size="16px" />
+                            Clear flags
+                          </x-button>
+                        </x-slot:trigger>
+                        Are you sure you would like to clear all detected risk flags for this user?
+                      </x-confirm-modal>
+                    </form>
+                  @endif
+                </div>
               </div>
             </div>
           </details>
