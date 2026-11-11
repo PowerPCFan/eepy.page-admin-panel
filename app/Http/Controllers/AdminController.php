@@ -254,61 +254,67 @@ final class AdminController extends Controller
         ]);
 
         $name = $validated['name'];
-        match ($name) {
-            'verify' => $this->api($request, 'POST', '/admin/user/verify', query: ['id' => $validated['user_id']]),
-            'permission' => $this->api($request, 'PATCH', '/admin/user/permission', query: [
-                'id' => $validated['user_id'],
-                'permission' => $validated['permission'],
-                'value' => $this->castPermissionValue($validated['value'] ?? ''),
-                'send_email' => $validated['send_email'] ?? false,
-            ]),
-            'permissions' => $this->updatePermissions($request, $validated['user_id'], $validated['permissions'] ?? [], $validated['send_email'] ?? false),
-            'add-tld', 'remove-tld' => $this->api($request, 'POST', '/admin/user/tld/'.($name === 'add-tld' ? 'add' : 'remove'), query: [
-                'id' => $validated['user_id'],
-                'tld' => $validated['tld'],
-                'send_email' => $validated['send_email'] ?? false,
-            ]),
-            'delete-domain' => $this->api($request, 'DELETE', '/admin/domain/delete', query: [
-                'userid' => $validated['user_id'],
-                'domain' => $validated['domain'],
-                'type' => $validated['type'],
-                'reason' => $validated['reason'] ?? '',
-                'send_email' => $validated['send_email'] ?? false,
-            ]),
-            'edit-domain' => $this->api($request, 'PATCH', '/admin/domain/edit', body: [
-                'user_id' => $validated['user_id'],
-                'domain' => $validated['domain'],
-                'values' => array_values(array_filter($validated['values'] ?? [], static fn (string $value): bool => trim($value) !== '')),
-                'type' => $validated['type'],
-                'old_type' => $validated['old_type'] ?? null,
-                'mode' => $validated['mode'] ?? 'both',
-            ]),
-            'delete-account' => $this->api($request, 'DELETE', '/admin/user/delete', body: [
-                'user_id' => $validated['user_id'],
-                'reasons' => preg_split('/\R/', $validated['reasons'] ?? '', -1, PREG_SPLIT_NO_EMPTY),
-                'send_email' => $validated['send_email'] ?? false,
-            ]),
-            'reinstate' => $this->api($request, 'POST', '/admin/user/reinstate', query: [
-                'user_id' => $validated['user_id'],
-                'send_email' => $validated['send_email'] ?? false,
-            ]),
-            'full-admin' => $this->api($request, 'POST', '/admin/user/full-admin', body: ['user_id' => $validated['user_id']]),
-            'manual-login' => $this->manualLogin($request, $validated['user_id']),
-            'set-status' => $this->api($request, 'POST', '/admin/status', body: ['message' => $validated['message']]),
-            'clear-status' => $this->api($request, 'POST', '/admin/status/clear'),
-            'desync' => $this->desync($request),
-            'toggle-disabled' => $this->api($request, 'POST', '/admin/user/disabled', body: [
-                'user_id' => $validated['user_id'],
-                'disabled' => filter_var($validated['disabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                'reason' => $validated['reason'] ?? '',
-            ]),
-            'risk-update' => $this->api($request, 'POST', '/admin/user/risk/update', body: array_filter([
-                'user_id' => $validated['user_id'],
-                'score' => isset($validated['score']) ? (int) $validated['score'] : null,
-                'locked' => isset($validated['locked']) ? filter_var($validated['locked'], FILTER_VALIDATE_BOOLEAN) : null,
-                'clear_flags' => filter_var($validated['clear_flags'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            ], static fn ($val) => $val !== null)),
-        };
+        $sendEmail = $request->boolean('send_email');
+
+        try {
+            match ($name) {
+                'verify' => $this->api($request, 'POST', '/admin/user/verify', query: ['id' => $validated['user_id']]),
+                'permission' => $this->api($request, 'PATCH', '/admin/user/permission', query: [
+                    'id' => $validated['user_id'],
+                    'permission' => $validated['permission'],
+                    'value' => $this->castPermissionValue($validated['value'] ?? ''),
+                    'send_email' => $sendEmail,
+                ]),
+                'permissions' => $this->updatePermissions($request, $validated['user_id'], $validated['permissions'] ?? [], $sendEmail),
+                'add-tld', 'remove-tld' => $this->api($request, 'POST', '/admin/user/tld/'.($name === 'add-tld' ? 'add' : 'remove'), query: [
+                    'id' => $validated['user_id'],
+                    'tld' => $validated['tld'],
+                    'send_email' => $sendEmail,
+                ]),
+                'delete-domain' => $this->api($request, 'DELETE', '/admin/domain/delete', query: [
+                    'userid' => $validated['user_id'],
+                    'domain' => $validated['domain'],
+                    'type' => $validated['type'],
+                    'reason' => $validated['reason'] ?? '',
+                    'send_email' => $sendEmail,
+                ]),
+                'edit-domain' => $this->api($request, 'PATCH', '/admin/domain/edit', body: [
+                    'user_id' => $validated['user_id'],
+                    'domain' => $validated['domain'],
+                    'values' => array_values(array_filter($validated['values'] ?? [], static fn (string $value): bool => trim($value) !== '')),
+                    'type' => $validated['type'],
+                    'old_type' => $validated['old_type'] ?? null,
+                    'mode' => $validated['mode'] ?? 'both',
+                ]),
+                'delete-account' => $this->api($request, 'DELETE', '/admin/user/delete', body: [
+                    'user_id' => $validated['user_id'],
+                    'reasons' => preg_split('/\R/', $validated['reasons'] ?? '', -1, PREG_SPLIT_NO_EMPTY),
+                    'send_email' => $sendEmail,
+                ]),
+                'reinstate' => $this->api($request, 'POST', '/admin/user/reinstate', query: [
+                    'user_id' => $validated['user_id'],
+                    'send_email' => $sendEmail,
+                ]),
+                'full-admin' => $this->api($request, 'POST', '/admin/user/full-admin', body: ['user_id' => $validated['user_id']]),
+                'manual-login' => $this->manualLogin($request, $validated['user_id']),
+                'set-status' => $this->api($request, 'POST', '/admin/status', body: ['message' => $validated['message']]),
+                'clear-status' => $this->api($request, 'POST', '/admin/status/clear'),
+                'desync' => $this->desync($request),
+                'toggle-disabled' => $this->api($request, 'POST', '/admin/user/disabled', body: [
+                    'user_id' => $validated['user_id'],
+                    'disabled' => filter_var($validated['disabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'reason' => $validated['reason'] ?? '',
+                ]),
+                'risk-update' => $this->api($request, 'POST', '/admin/user/risk/update', body: array_filter([
+                    'user_id' => $validated['user_id'],
+                    'score' => isset($validated['score']) ? (int) $validated['score'] : null,
+                    'locked' => isset($validated['locked']) ? filter_var($validated['locked'], FILTER_VALIDATE_BOOLEAN) : null,
+                    'clear_flags' => filter_var($validated['clear_flags'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                ], static fn ($val) => $val !== null)),
+            };
+        } catch (HttpExceptionInterface $exception) {
+            return back()->withInput()->withErrors(['action' => $exception->getMessage()]);
+        }
 
         $route = $name === 'desync' ? 'admin.utilities' : 'admin.user';
 
@@ -396,12 +402,21 @@ final class AdminController extends Controller
         }
 
         if ($response->status() === 461 || $response->status() === 403) {
-            abort(403, $this->formatApiError($response));
+            Log::warning('Admin API forbidden', [
+                'path' => $path,
+                'status' => $response->status(),
+                'response' => $response->body(),
+            ]);
+            abort(403, $this->extractErrorMessage($response));
         }
 
         if ($response->failed()) {
-            Log::warning('Admin API request failed', ['path' => $path, 'status' => $response->status()]);
-            abort($response->status(), $this->formatApiError($response));
+            Log::warning('Admin API request failed', [
+                'path' => $path,
+                'status' => $response->status(),
+                'response' => $response->body(),
+            ]);
+            abort($response->status(), $this->extractErrorMessage($response));
         }
 
         return $response->json();
@@ -642,6 +657,42 @@ final class AdminController extends Controller
             'false' => 'false',
             default => is_numeric($value) ? (str_contains($value, '.') ? (float) $value : (int) $value) : $value,
         };
+    }
+
+    private function extractErrorMessage(Response $response): string
+    {
+        $json = $response->json();
+        if (is_array($json)) {
+            $detail = $json['detail'] ?? null;
+            if (is_string($detail) && trim($detail) !== '') {
+                return $detail;
+            }
+            if (is_array($detail)) {
+                $messages = [];
+                foreach ($detail as $item) {
+                    if (is_array($item)) {
+                        $msg = $item['msg'] ?? null;
+                        $loc = isset($item['loc']) && is_array($item['loc']) ? implode('.', array_slice($item['loc'], 1)) : null;
+                        if ($msg && $loc) {
+                            $messages[] = "{$loc}: {$msg}";
+                        } elseif ($msg) {
+                            $messages[] = (string) $msg;
+                        }
+                    } elseif (is_string($item)) {
+                        $messages[] = $item;
+                    }
+                }
+                if (! empty($messages)) {
+                    return implode('; ', $messages);
+                }
+            }
+            $message = $json['message'] ?? null;
+            if (is_string($message) && trim($message) !== '') {
+                return $message;
+            }
+        }
+
+        return 'The backend request failed with HTTP status '.$response->status().'.';
     }
 
     private function formatApiError(
