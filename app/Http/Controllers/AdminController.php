@@ -304,6 +304,7 @@ final class AdminController extends Controller
                     'user_id' => $validated['user_id'],
                     'disabled' => filter_var($validated['disabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'reason' => $validated['reason'] ?? '',
+                    'send_email' => $sendEmail,
                 ]),
                 'risk-update' => $this->api($request, 'POST', '/admin/user/risk/update', body: array_filter([
                     'user_id' => $validated['user_id'],

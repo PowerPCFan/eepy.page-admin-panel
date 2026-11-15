@@ -276,6 +276,12 @@
                       />
                     </div>
                   @endif
+                  <x-checkbox
+                    form="toggle-disabled-{{ $user['id'] ?? '' }}"
+                    name="send_email"
+                    label="Send email"
+                    containerClass="mt-3"
+                  />
                 </x-confirm-modal>
               </form>
             </div>
