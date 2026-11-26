@@ -57,8 +57,8 @@
             required
             class="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-foreground outline-none focus:border-primary focus:ring-4 focus:ring-primary/20"
           >
-            <option value="both">Synchronized &lpar;MongoDB + PowerDNS&rpar;</option>
-            <option value="mongo">MongoDB only</option>
+            <option value="both">Synchronized &lpar;PostgreSQL + PowerDNS&rpar;</option>
+            <option value="postgres">PostgreSQL only</option>
             <option value="pdns">PowerDNS only</option>
           </select>
         </div>
