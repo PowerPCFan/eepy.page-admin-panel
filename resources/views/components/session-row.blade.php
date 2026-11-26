@@ -6,7 +6,7 @@
     <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div class="min-w-0 w-full flex-1">
             <div class="mt-1 block w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm text-muted">
-                {{ $session['agent'] ?? ($session['user-agent'] ?? 'Unknown agent') }}
+                {{ $session['agent'] ?? ($session['user_agent'] ?? 'Unknown agent') }}
             </div>
         </div>
     </div>

@@ -97,7 +97,7 @@
         $adminPermissions = $admin['permissions'] ?? [];
         $limits = $permissions['limits'] ?? [];
         $sessions = $user['sessions'] ?? [];
-        $ownedTlds = $user['owned-tlds'] ?? [];
+        $ownedTlds = $user['owned_tlds'] ?? [];
         $country = is_array($user['country'] ?? null) ? $user['country'] : [];
         $risk = $user['risk'] ?? [];
         $riskThresholds = $user['risk_thresholds'] ?? [];
@@ -329,7 +329,6 @@
                 <span class="ml-1 text-xs text-muted font-normal">(Locked)</span>
               @endif
             </x-stat>
-            <x-stat title="Beta enrolled">{{ $user['beta-enroll'] ?? false ? 'Yes' : 'No' }}</x-stat>
             <x-stat title="Domains">{{ count($domains) }}</x-stat>
             <x-stat title="Active sessions">{{ count($sessions) }}</x-stat>
             <x-stat title="API keys">{{ $user['api_key_amount'] ?? 0 }}</x-stat>
@@ -558,7 +557,7 @@
                 $adminPermissionNames = [
                   'account',
                   'dns',
-                  'manage-permissions',
+                  'manage_permissions',
                   'reports',
                   'userdetails',
                   'wildcards',
@@ -661,8 +660,8 @@
               <h3 class="font-mono text-xs tracking-wider text-muted mt-0.5 -mb-0.5">Account limits</h3>
               @php
                 $readableMap = [
-                  'max-domains' => 'Max Domains',
-                  'max-subdomains' => 'Max Subdomains',
+                  'max_domains' => 'Max Domains',
+                  'max_subdomains' => 'Max Subdomains',
                 ]
               @endphp
               @foreach ($limits as $limit => $value)

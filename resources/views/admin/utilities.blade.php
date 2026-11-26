@@ -24,15 +24,15 @@
       <div class="grid gap-3 border-t border-border pt-4">
         <div class="flex flex-col">
           <h2 class="text-xl font-semibold">Report</h2>
-          <span class="text-sm font-light">Record Counts: MongoDB: {{ $desync['mongo_keys'] ?? 0 }}, PowerDNS: {{ $desync['powerdns_keys'] ?? 0 }}</span>
+          <span class="text-sm font-light">Record Counts: PostgreSQL: {{ $desync['postgres_keys'] ?? 0 }}, PowerDNS: {{ $desync['powerdns_keys'] ?? 0 }}</span>
         </div>
         @foreach (($desync['issues'] ?? []) as $title => $entries)
           @if ($entries)
             @php
               $friendlyMap = [
-                "duplicate_mongo" => "Duplicate records in MongoDB",
+                "duplicate_postgres" => "Duplicate records in PostgreSQL",
                 "missing_from_powerdns" => "Missing from PowerDNS",
-                "missing_from_mongo" => "Missing from MongoDB",
+                "missing_from_postgres" => "Missing from PostgreSQL",
                 "value_mismatches" => "Value mismatches",
               ];
             @endphp

@@ -138,7 +138,7 @@ final class AdminController extends Controller
                 ->withErrors(['login' => 'Captcha verification failed. Please try again.']);
         }
 
-        if ($response->failed() || ! is_string($response->json('auth-token'))) {
+        if ($response->failed() || ! is_string($response->json('auth_token'))) {
             Log::warning('Backend login failed', ['status' => $response->status()]);
 
             return back()->withInput(['username' => $validated['username']])
@@ -146,7 +146,7 @@ final class AdminController extends Controller
         }
 
         $request->session()->regenerate();
-        $request->session()->put('api_token', $response->json('auth-token'));
+        $request->session()->put('api_token', $response->json('auth_token'));
 
         $refreshToken = $this->refreshTokenFromResponse($response);
         if ($refreshToken === null) {
@@ -240,7 +240,7 @@ final class AdminController extends Controller
             'domain' => ['nullable', 'required_if:name,edit-domain', 'string', 'max:255'],
             'type' => ['nullable', 'required_if:name,edit-domain', 'string', 'in:A,AAAA,CNAME,TXT'],
             'old_type' => ['nullable', 'string', 'in:A,AAAA,CNAME,TXT'],
-            'mode' => ['nullable', 'string', 'in:both,mongo,pdns'],
+            'mode' => ['nullable', 'string', 'in:both,postgres,db,pdns'],
             'values' => ['nullable', 'required_if:name,edit-domain', 'array', 'min:1'],
             'values.*' => ['required', 'string', 'max:4096'],
             'reason' => ['nullable', 'string', 'max:2048'],
@@ -435,11 +435,11 @@ final class AdminController extends Controller
             ->timeout(20)
             ->post('/refresh');
 
-        if (! $response->successful() || ! is_string($response->json('auth-token'))) {
+        if (! $response->successful() || ! is_string($response->json('auth_token'))) {
             return false;
         }
 
-        $request->session()->put('api_token', $response->json('auth-token'));
+        $request->session()->put('api_token', $response->json('auth_token'));
         $newRefreshToken = $this->refreshTokenFromResponse($response);
         if ($newRefreshToken !== null) {
             $request->session()->put('api_refresh_token', $newRefreshToken);
